@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) void {
     // Module
     const opts = .{ .target = target, .optimize = optimize };
     const cache_mod = b.dependency("cache", opts).module("cache");
-    const ipinfo_mod = b.addModule("ipinfo-zig", .{
+    const ipinfo_mod = b.addModule("ipinfo", .{
         .root_source_file = .{ .path = "src/ipinfo.zig" },
         .imports = &.{
             .{ .name = "cache", .module = cache_mod },
