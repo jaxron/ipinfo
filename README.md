@@ -12,8 +12,8 @@ An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](ht
     .version = "1.0.0",
     .dependencies = .{
 +       .ipinfo = .{
-+           .url = "https://github.com/jaxron/ipinfo/archive/e93e057bda8fae57b53a4edb991b6b4a6555cf44.tar.gz",
-+           .hash = "1220754f621befa733b3300463d3c5ab3b00bb2e3aa6c4324e08fb37bd524b200932",
++           .url = "https://github.com/jaxron/ipinfo/archive/5fe224ff495bc5b78b76771dca22122733f8d531.tar.gz",
++           .hash = "1220da996c65cda6cdfbe0ca65e6ee9323971d94f46618adadd39099087d36f468c4",
 +       },
     },
 }
