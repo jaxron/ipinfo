@@ -1,0 +1,11 @@
+.{
+    .name = "ipinfo",
+    .version = "0.1.0",
+    .paths = .{""},
+    .dependencies = .{
+        .cache = .{
+            .url = "https://github.com/karlseguin/cache.zig/archive/2ef2f773a9a52c1bfb2d34d1bdc546357b234fa6.tar.gz",
+            .hash = "12201d35c6f56f106df987e6881e5caab9fd716088cb75d2c9103ec3a02ac12d9475",
+        },
+    },
+}
