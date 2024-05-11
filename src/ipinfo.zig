@@ -14,7 +14,7 @@ test "string_builder: concatenation" {
     {
         var string = builder.String.init(allocator);
         defer string.deinit();
-        
+
         const expected = "The quick brown fox jumps over the lazy dog";
 
         try string.concat(expected);
@@ -105,4 +105,19 @@ test "client: valid IP address with cache test" {
 
     // Compare the results
     try t.expectEqualStrings(res.body.items, res2.body.items);
+}
+
+test "client: bogon IP address" {
+    const allocator = t.allocator;
+    var c = try Client.init(allocator, .{});
+    defer c.deinit();
+
+    // Test with a bogon IP address
+    const res = try c.getIPInfo(.{
+        .ipAddress = "0.0.0.0",
+    });
+    defer res.deinit();
+
+    try t.expect(res.err == .Success);
+    try t.expect(res.parsed.value.bogon.?);
 }

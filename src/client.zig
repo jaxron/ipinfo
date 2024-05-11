@@ -111,6 +111,7 @@ pub const FilteredIPInfo = struct {
 pub const ResultInfo = struct {
     ip: ?[]const u8 = null,
     hostname: ?[]const u8 = null,
+    bogon: ?bool = null,
     anycast: ?bool = null,
     city: ?[]const u8 = null,
     region: ?[]const u8 = null,
