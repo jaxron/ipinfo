@@ -53,7 +53,14 @@ pub const Request = struct {
 
     // Literally waiting for this D:
     // https://github.com/ziglang/zig/issues/2647
-    pub const GetResult = struct { body: std.ArrayList(u8), err: Error };
+    pub const Result = struct { body: std.ArrayList(u8), err: Error };
+    pub const ResultError = struct {
+        status: u10,
+        @"error": struct {
+            title: []const u8,
+            message: []const u8,
+        },
+    };
 
     /// Initializes the client with the specified allocator
     pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !Request {
@@ -80,13 +87,12 @@ pub const Request = struct {
     }
 
     /// Makes a GET request to the IPInfo API
-    pub fn get(self: *Request, options: GetOptions) !GetResult {
+    pub fn get(self: *Request, options: GetOptions) !Result {
         // Build the API token
         var apiToken = builder.String.init(self.allocator);
         defer apiToken.deinit();
 
-        try apiToken.concat("Bearer ");
-        try apiToken.concat(options.apiToken);
+        try apiToken.concatAll(&.{ "Bearer ", options.apiToken });
 
         // Get response from cache if available
         if (self.cache.enabled) {
@@ -97,10 +103,7 @@ pub const Request = struct {
                 var body = std.ArrayList(u8).init(self.allocator);
                 try body.appendSlice(entry.value);
 
-                return .{
-                    .body = body,
-                    .err = .{},
-                };
+                return .{ .body = body, .err = .{} };
             }
         }
 
@@ -108,9 +111,7 @@ pub const Request = struct {
         var body = std.ArrayList(u8).init(self.allocator);
         const res = try self.client.fetch(.{
             .method = .GET,
-            .location = .{
-                .url = options.url
-            },
+            .location = .{ .url = options.url },
             .headers = .{
                 .user_agent = .{ .override = options.userAgent },
                 .authorization = .{ .override = apiToken.string() },
@@ -125,13 +126,7 @@ pub const Request = struct {
 
         // Check if response is unsuccessful
         if (res.status != .ok) {
-            const parsed = try std.json.parseFromSlice(struct {
-                status: u10,
-                @"error": struct {
-                    title: []const u8,
-                    message: []const u8,
-                },
-            }, self.allocator, body.items, .{});
+            const parsed = try std.json.parseFromSlice(ResultError, self.allocator, body.items, .{});
             defer parsed.deinit();
 
             return .{

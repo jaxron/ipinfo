@@ -45,6 +45,16 @@ pub const String = struct {
         self.size += value.len;
     }
 
+    pub fn concatAll(self: *String, values: []const []const u8) Allocator.Error!void {
+        for (values) |value| {
+            try self.concat(value);
+        }
+    }
+
+    pub fn concatIf(self: *String, condition: bool, value: []const u8) Allocator.Error!void {
+        if (condition) try self.concat(value);
+    }
+
     pub fn string(self: *String) []const u8 {
         return self.buf[0..self.size];
     }

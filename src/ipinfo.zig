@@ -142,8 +142,7 @@ pub const Client = struct {
         var finalURL = builder.String.init(self.allocator);
         defer finalURL.deinit();
 
-        try finalURL.concat(options.baseURL);
-        try finalURL.concat(options.ipAddress);
+        try finalURL.concatAll(&.{ options.baseURL, options.ipAddress });
 
         // Make the request
         const done = try self.request.get(.{
@@ -181,14 +180,9 @@ pub const Client = struct {
         var finalURL = builder.String.init(self.allocator);
         defer finalURL.deinit();
 
-        try finalURL.concat(options.baseURL);
-        try finalURL.concat(options.ipAddress);
-        if (filter != .none) {
-            if (options.ipAddress.len != 0) {
-                try finalURL.concat("/");
-            }
-            try finalURL.concat(@tagName(filter));
-        }
+        try finalURL.concatAll(&.{ options.baseURL, options.ipAddress });
+        try finalURL.concatIf(filter != .none and options.ipAddress.len != 0, "/");
+        try finalURL.concatIf(filter != .none, @tagName(filter));
 
         // Make the request
         const done = try self.request.get(.{
