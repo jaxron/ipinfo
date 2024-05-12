@@ -2,6 +2,9 @@ const std = @import("std");
 const builder = @import("string_builder.zig");
 const request = @import("request.zig");
 
+const default_base_url = "https://ipinfo.io/";
+const default_user_agent = "zig-ipinfo-unofficial/0.1.0";
+
 pub fn main() !void {}
 
 /// Contains information about the request error
@@ -11,7 +14,7 @@ pub const Error = union(enum) {
     Success,
     /// Request failed with a specific error
     /// different from 200
-    Failed: request.RequestError,
+    Failed: request.Error,
 };
 
 /// Contains parsed values from the response body
@@ -36,7 +39,7 @@ pub const IPInfo = struct {
 /// Contains filtered values from the response body
 pub const FilteredIPInfo = struct {
     /// The type of filter used
-    filter: request.RequestFilter,
+    filter: request.Filter,
     /// The plain response body
     value: std.ArrayList(u8),
     /// Information about the error if the request failed
@@ -102,6 +105,20 @@ pub const ResultInfo = struct {
     readme: ?[]const u8 = null,
 };
 
+/// Contains information needed to make a request
+pub const IPInfoOptions = struct {
+    baseURL: []const u8 = default_base_url,
+    userAgent: []const u8 = default_user_agent,
+
+    /// The token used to authenticate the request
+    /// and is left empty by default
+    apiToken: []const u8 = "",
+
+    /// The IP address to get information about
+    /// and defaults to your own IP address
+    ipAddress: []const u8 = "",
+};
+
 pub const Client = struct {
     allocator: std.mem.Allocator,
     request: request.Request,
@@ -120,8 +137,20 @@ pub const Client = struct {
     }
 
     /// Returns IP information for the specified IP address
-    pub fn getIPInfo(self: *Client, options: request.RequestOptions) !IPInfo {
-        const done = try self.request.get(options, .none);
+    pub fn getIPInfo(self: *Client, options: IPInfoOptions) !IPInfo {
+        // Build the final URL
+        var finalURL = builder.String.init(self.allocator);
+        defer finalURL.deinit();
+
+        try finalURL.concat(options.baseURL);
+        try finalURL.concat(options.ipAddress);
+
+        // Make the request
+        const done = try self.request.get(.{
+            .url = finalURL.string(),
+            .userAgent = options.userAgent,
+            .apiToken = options.apiToken,
+        });
         const body = done.body;
         const err = done.err;
 
@@ -147,8 +176,26 @@ pub const Client = struct {
     }
 
     /// Returns IP information for the specified IP address with a filter for the response
-    pub fn getFilteredIPInfo(self: *Client, options: request.RequestOptions, filter: request.RequestFilter) !FilteredIPInfo {
-        const done = try self.request.get(options, filter);
+    pub fn getFilteredIPInfo(self: *Client, options: IPInfoOptions, filter: request.Filter) !FilteredIPInfo {
+        // Build the final URL
+        var finalURL = builder.String.init(self.allocator);
+        defer finalURL.deinit();
+
+        try finalURL.concat(options.baseURL);
+        try finalURL.concat(options.ipAddress);
+        if (filter != .none) {
+            if (options.ipAddress.len != 0) {
+                try finalURL.concat("/");
+            }
+            try finalURL.concat(@tagName(filter));
+        }
+
+        // Make the request
+        const done = try self.request.get(.{
+            .url = finalURL.string(),
+            .userAgent = options.userAgent,
+            .apiToken = options.apiToken,
+        });
         var body = done.body;
         const err = done.err;
 

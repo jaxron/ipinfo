@@ -2,9 +2,6 @@ const std = @import("std");
 const cache = @import("cache");
 const builder = @import("string_builder.zig");
 
-const default_base_url = "https://ipinfo.io/";
-const default_user_agent = "zig-ipinfo-unofficial/0.1.0";
-
 /// The cache is used to store successful
 /// responses for a certain amount of time
 /// which can reduce the number of requests
@@ -16,27 +13,8 @@ pub const CacheConfig = struct {
     ttl: u32 = 3600,
 };
 
-/// Contains information needed to make a request
-pub const RequestOptions = struct {
-    /// There should not be any need to change it
-    baseURL: []const u8 = default_base_url,
-
-    /// A unique identifier used in requests
-    /// when using this library
-    userAgent: []const u8 = default_user_agent,
-
-    /// The token used to authenticate the request
-    /// and is left empty by default unless you
-    /// have a paid plan
-    apiToken: []const u8 = "",
-
-    /// The IP address to get information about
-    /// and defaults to your own IP address
-    ipAddress: []const u8 = "",
-};
-
 /// Contains information needed to filter the data from the response
-pub const RequestFilter = union(enum) {
+pub const Filter = union(enum) {
     none,
     ip,
     hostname,
@@ -56,7 +34,7 @@ pub const RequestFilter = union(enum) {
 };
 
 /// Contains information about the request error
-pub const RequestError = struct {
+pub const Error = struct {
     status: std.http.Status = .ok,
     title: []const u8 = "",
     message: []const u8 = "",
@@ -67,9 +45,15 @@ pub const Request = struct {
     client: std.http.Client,
     cache: CacheConfig,
 
+    pub const GetOptions = struct {
+        url: []const u8,
+        userAgent: []const u8,
+        apiToken: []const u8,
+    };
+
     // Literally waiting for this D:
     // https://github.com/ziglang/zig/issues/2647
-    pub const GetResult = struct { body: std.ArrayList(u8), err: RequestError };
+    pub const GetResult = struct { body: std.ArrayList(u8), err: Error };
 
     /// Initializes the client with the specified allocator
     pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !Request {
@@ -96,20 +80,7 @@ pub const Request = struct {
     }
 
     /// Makes a GET request to the IPInfo API
-    pub fn get(self: *Request, options: RequestOptions, filter: RequestFilter) !GetResult {
-        // Build the final URL
-        var finalURL = builder.String.init(self.allocator);
-        defer finalURL.deinit();
-
-        try finalURL.concat(options.baseURL);
-        try finalURL.concat(options.ipAddress);
-        if (filter != .none) {
-            if (options.ipAddress.len != 0) {
-                try finalURL.concat("/");
-            }
-            try finalURL.concat(@tagName(filter));
-        }
-
+    pub fn get(self: *Request, options: GetOptions) !GetResult {
         // Build the API token
         var apiToken = builder.String.init(self.allocator);
         defer apiToken.deinit();
@@ -119,7 +90,7 @@ pub const Request = struct {
 
         // Get response from cache if available
         if (self.cache.enabled) {
-            if (self.cache.storage.?.get(finalURL.string())) |entry| {
+            if (self.cache.storage.?.get(options.url)) |entry| {
                 defer entry.release();
 
                 // Convert the cache entry to a response body
@@ -138,7 +109,7 @@ pub const Request = struct {
         const res = try self.client.fetch(.{
             .method = .GET,
             .location = .{
-                .url = finalURL.string(),
+                .url = options.url
             },
             .headers = .{
                 .user_agent = .{ .override = options.userAgent },
@@ -175,7 +146,7 @@ pub const Request = struct {
 
         // Cache the response body
         if (self.cache.enabled)
-            try self.cache.storage.?.put(finalURL.string(), body.items, .{ .ttl = self.cache.ttl });
+            try self.cache.storage.?.put(options.url, body.items, .{ .ttl = self.cache.ttl });
 
         return .{ .body = body, .err = .{} };
     }
