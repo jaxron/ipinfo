@@ -45,10 +45,19 @@ pub const Request = struct {
     client: std.http.Client,
     cache: CacheConfig,
 
+    /// Required options to make a GET request
     pub const GetOptions = struct {
         url: []const u8,
         userAgent: []const u8,
         apiToken: []const u8,
+    };
+
+    /// Required options to make a POST request
+    pub const PostOptions = struct {
+        url: []const u8,
+        userAgent: []const u8,
+        apiToken: []const u8,
+        payload: []const u8,
     };
 
     // Literally waiting for this D:
@@ -86,7 +95,68 @@ pub const Request = struct {
         if (self.cache.enabled) self.cache.storage.?.deinit();
     }
 
-    /// Makes a GET request to the IPInfo API
+    /// Makes a POST request to the given URL
+    pub fn post(self: *Request, options: PostOptions) !Result {
+        // Build the API token
+        var apiToken = builder.String.init(self.allocator);
+        defer apiToken.deinit();
+
+        try apiToken.concatAll(&.{ "Bearer ", options.apiToken });
+
+        // Build cache key
+        var cacheKey = builder.String.init(self.allocator);
+        defer cacheKey.deinit();
+
+        try cacheKey.concatAll(&.{ options.url, ":", options.payload });
+
+        var keyHasher = std.hash.Crc32.init();
+        keyHasher.update(cacheKey.string());
+
+        // Get response from cache if available
+        const cacheRes = self.getCacheResult(keyHasher.final());
+        if (cacheRes != error.NotFound) return cacheRes;
+
+        // Make a request if cache is disabled or not available
+        var body = std.ArrayList(u8).init(self.allocator);
+        const res = try self.client.fetch(.{
+            .method = .POST,
+            .location = .{ .url = options.url },
+            .headers = .{
+                .user_agent = .{ .override = options.userAgent },
+                .authorization = .{ .override = apiToken.string() },
+            },
+            .extra_headers = &.{
+                .{ .name = "Accept", .value = "application/json" },
+            },
+            .response_storage = .{
+                .dynamic = &body,
+            },
+            .payload = options.payload,
+        });
+
+        // Check if response is unsuccessful
+        if (res.status != .ok) {
+            const parsed = try std.json.parseFromSlice(ResultError, self.allocator, body.items, .{});
+            defer parsed.deinit();
+
+            return .{
+                .body = body,
+                .err = .{
+                    .status = @enumFromInt(parsed.value.status),
+                    .title = parsed.value.@"error".title,
+                    .message = parsed.value.@"error".message,
+                },
+            };
+        }
+
+        // Cache the response body
+        if (self.cache.enabled)
+            try self.cache.storage.?.put(keyHasher.final(), body.items, .{ .ttl = self.cache.ttl });
+
+        return .{ .body = body, .err = .{} };
+    }
+
+    /// Makes a GET request to the given URL
     pub fn get(self: *Request, options: GetOptions) !Result {
         // Build the API token
         var apiToken = builder.String.init(self.allocator);
@@ -95,17 +165,8 @@ pub const Request = struct {
         try apiToken.concatAll(&.{ "Bearer ", options.apiToken });
 
         // Get response from cache if available
-        if (self.cache.enabled) {
-            if (self.cache.storage.?.get(options.url)) |entry| {
-                defer entry.release();
-
-                // Convert the cache entry to a response body
-                var body = std.ArrayList(u8).init(self.allocator);
-                try body.appendSlice(entry.value);
-
-                return .{ .body = body, .err = .{} };
-            }
-        }
+        const cacheRes = self.getCacheResult(options.url);
+        if (cacheRes != error.NotFound) return cacheRes;
 
         // Make a request if cache is disabled or not available
         var body = std.ArrayList(u8).init(self.allocator);
@@ -144,5 +205,20 @@ pub const Request = struct {
             try self.cache.storage.?.put(options.url, body.items, .{ .ttl = self.cache.ttl });
 
         return .{ .body = body, .err = .{} };
+    }
+
+    fn getCacheResult(self: *Request, key: []const u8) !Result {
+        if (self.cache.enabled) {
+            if (self.cache.storage.?.get(key)) |entry| {
+                defer entry.release();
+
+                // Convert the cache entry to a response body
+                var body = std.ArrayList(u8).init(self.allocator);
+                try body.appendSlice(entry.value);
+
+                return .{ .body = body, .err = .{} };
+            }
+        }
+        return error.NotFound;
     }
 };
