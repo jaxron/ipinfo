@@ -1,68 +1,8 @@
 const std = @import("std");
 const builder = @import("string_builder.zig");
-const cache = @import("cache");
-
-const default_base_url = "https://ipinfo.io/";
-const default_user_agent = "zig-ipinfo-unofficial/0.1.0";
+const request = @import("request.zig");
 
 pub fn main() !void {}
-
-/// The cache is used to store successful
-/// responses for a certain amount of time
-/// which can reduce the number of requests
-/// and speed up the application
-pub const CacheConfig = struct {
-    enabled: bool = true,
-    storage: cache.Cache([]u8) = undefined,
-    max_items: u32 = 2000,
-    ttl: u32 = 3600,
-};
-
-/// Contains information needed to make a request
-pub const RequestOptions = struct {
-    /// There should not be any need to change it
-    baseURL: []const u8 = default_base_url,
-
-    /// A unique identifier used in requests
-    /// when using this library
-    userAgent: []const u8 = default_user_agent,
-
-    /// The token used to authenticate the request
-    /// and is left empty by default unless you
-    /// have a paid plan
-    apiToken: []const u8 = "",
-
-    /// The IP address to get information about
-    /// and defaults to your own IP address
-    ipAddress: []const u8 = "",
-};
-
-/// Contains information needed to filter the data from the response
-pub const RequestFilter = union(enum) {
-    none,
-    ip,
-    hostname,
-    anycast,
-    city,
-    region,
-    country,
-    loc,
-    org,
-    postal,
-    timezone,
-    asn,
-    company,
-    privacy,
-    abuse,
-    domains,
-};
-
-/// Contains information about the request error
-pub const RequestError = struct {
-    status: std.http.Status = .ok,
-    title: []const u8 = "",
-    message: []const u8 = "",
-};
 
 /// Contains information about the request error
 /// if the request failed
@@ -71,7 +11,7 @@ pub const Error = union(enum) {
     Success,
     /// Request failed with a specific error
     /// different from 200
-    Failed: RequestError,
+    Failed: request.RequestError,
 };
 
 /// Contains parsed values from the response body
@@ -96,7 +36,7 @@ pub const IPInfo = struct {
 /// Contains filtered values from the response body
 pub const FilteredIPInfo = struct {
     /// The type of filter used
-    filter: RequestFilter,
+    filter: request.RequestFilter,
     /// The plain response body
     value: std.ArrayList(u8),
     /// Information about the error if the request failed
@@ -164,35 +104,24 @@ pub const ResultInfo = struct {
 
 pub const Client = struct {
     allocator: std.mem.Allocator,
-    client: std.http.Client,
-    cache: CacheConfig,
+    request: request.Request,
 
-    pub const DoResult = struct { body: std.ArrayList(u8), err: RequestError };
-
-    /// Opens a new client in a thread-safe way
-    pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !Client {
+    /// Initializes the client with the specified allocator
+    pub fn init(allocator: std.mem.Allocator, config: request.CacheConfig) !Client {
         return .{
             .allocator = allocator,
-            .client = std.http.Client{
-                .allocator = allocator,
-            },
-            .cache = .{
-                .storage = try cache.Cache([]u8).init(allocator, .{
-                    .max_size = config.max_items,
-                }),
-            },
+            .request = try request.Request.init(allocator, config),
         };
     }
 
     /// Releases all associated resources with the client
     pub fn deinit(self: *Client) void {
-        self.client.deinit();
-        self.cache.storage.deinit();
+        self.request.deinit();
     }
 
     /// Returns IP information for the specified IP address
-    pub fn getIPInfo(self: *Client, options: RequestOptions) !IPInfo {
-        const done = try self.do(options, .none);
+    pub fn getIPInfo(self: *Client, options: request.RequestOptions) !IPInfo {
+        const done = try self.request.get(options, .none);
         const body = done.body;
         const err = done.err;
 
@@ -218,8 +147,8 @@ pub const Client = struct {
     }
 
     /// Returns IP information for the specified IP address with a filter for the response
-    pub fn getFilteredIPInfo(self: *Client, options: RequestOptions, filter: RequestFilter) !FilteredIPInfo {
-        const done = try self.do(options, filter);
+    pub fn getFilteredIPInfo(self: *Client, options: request.RequestOptions, filter: request.RequestFilter) !FilteredIPInfo {
+        const done = try self.request.get(options, filter);
         var body = done.body;
         const err = done.err;
 
@@ -242,90 +171,5 @@ pub const Client = struct {
             .value = body,
             .err = .Success,
         };
-    }
-
-    /// Makes a request to the IPInfo API
-    fn do(self: *Client, options: RequestOptions, filter: RequestFilter) !DoResult {
-        // Build the final URL
-        var finalURL = builder.String.init(self.allocator);
-        defer finalURL.deinit();
-
-        try finalURL.concat(options.baseURL);
-        try finalURL.concat(options.ipAddress);
-        if (filter != .none) {
-            if (options.ipAddress.len != 0) {
-                try finalURL.concat("/");
-            }
-            try finalURL.concat(@tagName(filter));
-        }
-
-        // Build the API token
-        var apiToken = builder.String.init(self.allocator);
-        defer apiToken.deinit();
-
-        try apiToken.concat("Bearer ");
-        try apiToken.concat(options.apiToken);
-
-        // Get response from cache if available
-        if (self.cache.enabled) {
-            if (self.cache.storage.get(finalURL.string())) |entry| {
-                defer entry.release();
-
-                // Convert the cache entry to a response body
-                var body = std.ArrayList(u8).init(self.allocator);
-                try body.appendSlice(entry.value);
-
-                return .{
-                    .body = body,
-                    .err = .{},
-                };
-            }
-        }
-
-        // Make a request if cache is disabled or not available
-        var body = std.ArrayList(u8).init(self.allocator);
-        const res = try self.client.fetch(.{
-            .method = .GET,
-            .location = .{
-                .url = finalURL.string(),
-            },
-            .headers = .{
-                .user_agent = .{ .override = options.userAgent },
-                .authorization = .{ .override = apiToken.string() },
-            },
-            .extra_headers = &.{
-                .{ .name = "Accept", .value = "application/json" },
-            },
-            .response_storage = .{
-                .dynamic = &body,
-            },
-        });
-
-        // Check if response is unsuccessful
-        if (res.status != .ok) {
-            const parsed = try std.json.parseFromSlice(struct {
-                status: u10,
-                @"error": struct {
-                    title: []const u8,
-                    message: []const u8,
-                },
-            }, self.allocator, body.items, .{});
-            defer parsed.deinit();
-
-            return .{
-                .body = body,
-                .err = .{
-                    .status = @enumFromInt(parsed.value.status),
-                    .title = parsed.value.@"error".title,
-                    .message = parsed.value.@"error".message,
-                },
-            };
-        }
-
-        // Cache the response body
-        if (self.cache.enabled)
-            try self.cache.storage.put(finalURL.string(), body.items, .{ .ttl = self.cache.ttl });
-
-        return .{ .body = body, .err = .{} };
     }
 };
