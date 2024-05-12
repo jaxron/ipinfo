@@ -2,6 +2,20 @@
 
 An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](https://ziglang.org/).
 
+## Features
+
+- [X] Basic IP Query
+- [X] Response Filtering
+- [X] Error Handling
+- [X] Bogon IP Support
+- [X] Response Caching
+- [ ] Batch Requests
+- [ ] Summarize IPs
+- [ ] CIDR to IP Range
+- [ ] Reverse DNS Lookup
+- [ ] Pingable IP Finder
+- [ ] IP Mapping
+
 ## Installation
 
 1. Add IPInfo to `build.zig.zon`:
