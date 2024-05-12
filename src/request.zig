@@ -11,7 +11,7 @@ const default_user_agent = "zig-ipinfo-unofficial/0.1.0";
 /// and speed up the application
 pub const CacheConfig = struct {
     enabled: bool = true,
-    storage: cache.Cache([]u8) = undefined,
+    storage: ?cache.Cache([]u8) = undefined,
     max_items: u32 = 2000,
     ttl: u32 = 3600,
 };
@@ -79,9 +79,12 @@ pub const Request = struct {
                 .allocator = allocator,
             },
             .cache = .{
-                .storage = try cache.Cache([]u8).init(allocator, .{
+                .enabled = config.enabled,
+                .storage = if (config.enabled) try cache.Cache([]u8).init(allocator, .{
                     .max_size = config.max_items,
-                }),
+                }) else null,
+                .max_items = config.max_items,
+                .ttl = config.ttl,
             },
         };
     }
@@ -89,7 +92,7 @@ pub const Request = struct {
     /// Releases all associated resources with the client
     pub fn deinit(self: *Request) void {
         self.client.deinit();
-        self.cache.storage.deinit();
+        if (self.cache.enabled) self.cache.storage.?.deinit();
     }
 
     /// Makes a GET request to the IPInfo API
@@ -116,7 +119,7 @@ pub const Request = struct {
 
         // Get response from cache if available
         if (self.cache.enabled) {
-            if (self.cache.storage.get(finalURL.string())) |entry| {
+            if (self.cache.storage.?.get(finalURL.string())) |entry| {
                 defer entry.release();
 
                 // Convert the cache entry to a response body
@@ -172,7 +175,7 @@ pub const Request = struct {
 
         // Cache the response body
         if (self.cache.enabled)
-            try self.cache.storage.put(finalURL.string(), body.items, .{ .ttl = self.cache.ttl });
+            try self.cache.storage.?.put(finalURL.string(), body.items, .{ .ttl = self.cache.ttl });
 
         return .{ .body = body, .err = .{} };
     }
