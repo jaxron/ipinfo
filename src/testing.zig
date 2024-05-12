@@ -83,9 +83,32 @@ test "client: invalid IP address" {
     }
 }
 
-test "client: valid IP address with cache test" {
+test "client: 2 valid IP address with cache" {
     const allocator = t.allocator;
     var c = try ipinfo.Client.init(allocator, .{});
+    defer c.deinit();
+
+    // Test with a valid IP address
+    const res = try c.getIPInfo(.{});
+    defer res.deinit();
+
+    try t.expect(res.err == .Success);
+
+    // Test with a valid IP address
+    const res2 = try c.getIPInfo(.{});
+    defer res2.deinit();
+
+    try t.expect(res2.err == .Success);
+
+    // Compare the results
+    try t.expectEqualStrings(res.body.items, res2.body.items);
+}
+
+test "client: 2 valid IP address without cache" {
+    const allocator = t.allocator;
+    var c = try ipinfo.Client.init(allocator, .{
+        .enabled = false,
+    });
     defer c.deinit();
 
     // Test with a valid IP address
