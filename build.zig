@@ -60,7 +60,7 @@ pub fn build(b: *std.Build) void {
 
     // Tests
     const lib_test = b.addTest(.{
-        .root_source_file = .{ .path = "src/ipinfo.zig" },
+        .root_source_file = .{ .path = "src/testing.zig" },
         .optimize = optimize,
         .target = target,
         .test_runner = .{ .path = "test_runner.zig" },
