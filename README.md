@@ -1,6 +1,6 @@
 # ipinfo
 
-An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](https://ziglang.org/).
+An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](https://ziglang.org/). Not recommended for production yet.
 
 ## Features
 
