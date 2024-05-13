@@ -12,4 +12,4 @@ jobs:
         with:
           zig-version: 0.12.0
       - name: Run tests
-        run: zig build test -- ${{ vars.IPINFO_TOKEN }}
+        run: zig build test -- ${{ secrets.IPINFO_TOKEN }}
