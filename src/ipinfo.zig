@@ -17,20 +17,37 @@ pub const Error = union(enum) {
     Failed: request.Error,
 };
 
-/// Contains parsed values from the response body
-/// without any filter
+/// Contains information about the batch request
+pub const IPInfoBatch = struct {
+    /// The response body
+    body: std.ArrayList(u8),
+    /// The parsed values from the response body
+    parsed: ?std.json.Parsed(std.json.ArrayHashMap([]const u8)) = null,
+    /// Information about the error if the request failed
+    err: Error,
+
+    /// Releases all allocated memory
+    pub fn deinit(self: *const IPInfoBatch) void {
+        if (self.err == .Success) {
+            self.parsed.?.deinit();
+        }
+        self.body.deinit();
+    }
+};
+
+/// Contains information about the basic request
 pub const IPInfo = struct {
     /// The response body
     body: std.ArrayList(u8),
     /// The parsed values from the response body
-    parsed: std.json.Parsed(ResultInfo),
+    parsed: ?std.json.Parsed(ResultInfo) = null,
     /// Information about the error if the request failed
     err: Error,
 
     /// Releases all allocated memory
     pub fn deinit(self: *const IPInfo) void {
         if (self.err == .Success) {
-            self.parsed.deinit();
+            self.parsed.?.deinit();
         }
         self.body.deinit();
     }
@@ -41,13 +58,13 @@ pub const FilteredIPInfo = struct {
     /// The type of filter used
     filter: request.Filter,
     /// The plain response body
-    value: std.ArrayList(u8),
+    value: ?std.ArrayList(u8) = null,
     /// Information about the error if the request failed
     err: Error,
 
     /// Releases all allocated memory
     pub fn deinit(self: *const FilteredIPInfo) void {
-        self.value.deinit();
+        self.value.?.deinit();
     }
 };
 
@@ -119,6 +136,22 @@ pub const IPInfoOptions = struct {
     ipAddress: []const u8 = "",
 };
 
+pub const IPInfoBatchOptions = struct {
+    baseURL: []const u8 = default_base_url,
+    userAgent: []const u8 = default_user_agent,
+
+    /// The token used to authenticate the request
+    /// and must be provided
+    apiToken: []const u8,
+
+    /// The IP URLs to get information about
+    /// in this format: 8.8.8.8/country
+    ipURLs: []const []const u8,
+
+    /// Whether or not to hide invalid/empty results
+    hideInvalid: bool = false,
+};
+
 pub const Client = struct {
     allocator: std.mem.Allocator,
     request: request.Request,
@@ -134,6 +167,46 @@ pub const Client = struct {
     /// Releases all associated resources with the client
     pub fn deinit(self: *Client) void {
         self.request.deinit();
+    }
+
+    /// Returns information for the specified IP URLs
+    pub fn getBatchIPInfo(self: *Client, options: IPInfoBatchOptions) !IPInfoBatch {
+        // Build the final URL
+        var finalURL = builder.String.init(self.allocator);
+        defer finalURL.deinit();
+
+        try finalURL.concatAll(&.{ options.baseURL, "batch" });
+        try finalURL.concatIf(options.hideInvalid, "?filter=1");
+
+        // Build the payload
+        const payload = try std.json.stringifyAlloc(self.allocator, options.ipURLs, .{});
+        defer self.allocator.free(payload);
+
+        // Make the request
+        const done = try self.request.post(.{
+            .url = finalURL.string(),
+            .userAgent = options.userAgent,
+            .apiToken = options.apiToken,
+            .payload = payload,
+        });
+        const body = done.body;
+        const err = done.err;
+
+        // Check if response is unsuccessful
+        if (err.status != .ok) {
+            return .{
+                .body = body,
+                .err = .{ .Failed = err },
+            };
+        }
+
+        // Parse if the request was successful
+        const parsed = try std.json.parseFromSlice(std.json.ArrayHashMap([]const u8), self.allocator, body.items, .{});
+        return .{
+            .parsed = parsed,
+            .body = body,
+            .err = .Success,
+        };
     }
 
     /// Returns IP information for the specified IP address
@@ -156,7 +229,6 @@ pub const Client = struct {
         // Check if response is unsuccessful
         if (err.status != .ok) {
             return .{
-                .parsed = undefined,
                 .body = body,
                 .err = .{ .Failed = err },
             };

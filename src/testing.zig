@@ -44,7 +44,7 @@ test "client: valid IP address using 8.8.8.8" {
     defer res.deinit();
 
     try t.expect(res.err == .Success);
-    try t.expectEqualStrings("AS15169 Google LLC", res.parsed.value.org.?);
+    try t.expectEqualStrings("AS15169 Google LLC", res.parsed.?.value.org.?);
 }
 
 test "client: valid IP address with filter" {
@@ -59,7 +59,47 @@ test "client: valid IP address with filter" {
     defer res.deinit();
 
     try t.expect(res.err == .Success);
-    try t.expectEqualStrings("US", res.value.items);
+    try t.expectEqualStrings("US", res.value.?.items);
+}
+
+test "client: 2 batch IP address requests" {
+    const allocator = t.allocator;
+    var c = try ipinfo.Client.init(allocator, .{});
+    defer c.deinit();
+
+    // Get secret token
+    const token = try std.process.getEnvVarOwned(allocator, "IPINFO_TOKEN");
+    defer allocator.free(token);
+
+    // Test with batch IP addresses
+    const res = try c.getBatchIPInfo(.{
+        .apiToken = token,
+        .ipURLs = &.{
+            "8.8.8.8/country",
+            "8.8.8.9/hostname",
+        },
+        .hideInvalid = true,
+    });
+    defer res.deinit();
+
+    try t.expect(res.err == .Success);
+    try t.expect(res.parsed.?.value.map.count() == 1);
+    try t.expectEqualStrings("US", res.parsed.?.value.map.values()[0]);
+
+    // Test the cache with the same batch IP addresses
+    const res2 = try c.getBatchIPInfo(.{
+        .apiToken = token,
+        .ipURLs = &.{
+            "8.8.8.8/country",
+            "8.8.8.9/hostname",
+        },
+        .hideInvalid = true,
+    });
+    defer res2.deinit();
+
+    try t.expect(res2.err == .Success);
+    try t.expect(res2.parsed.?.value.map.count() == 1);
+    try t.expectEqualStrings(res.parsed.?.value.map.values()[0], res2.parsed.?.value.map.values()[0]);
 }
 
 test "client: invalid IP address" {
@@ -139,5 +179,5 @@ test "client: bogon IP address" {
     defer res.deinit();
 
     try t.expect(res.err == .Success);
-    try t.expect(res.parsed.value.bogon.?);
+    try t.expect(res.parsed.?.value.bogon.?);
 }

@@ -109,11 +109,14 @@ pub const Request = struct {
 
         try cacheKey.concatAll(&.{ options.url, ":", options.payload });
 
-        var keyHasher = std.hash.Crc32.init();
+        var keyHasher = std.hash.XxHash3.init(@intCast(std.time.timestamp()));
         keyHasher.update(cacheKey.string());
 
+        const finalHash = try std.fmt.allocPrint(self.allocator, "{d}", .{keyHasher.final()});
+        defer self.allocator.free(finalHash);
+
         // Get response from cache if available
-        const cacheRes = self.getCacheResult(keyHasher.final());
+        const cacheRes = self.getCacheResult(finalHash);
         if (cacheRes != error.NotFound) return cacheRes;
 
         // Make a request if cache is disabled or not available
@@ -126,6 +129,7 @@ pub const Request = struct {
                 .authorization = .{ .override = apiToken.string() },
             },
             .extra_headers = &.{
+                .{ .name = "Content-Type", .value = "application/json" },
                 .{ .name = "Accept", .value = "application/json" },
             },
             .response_storage = .{
@@ -151,7 +155,7 @@ pub const Request = struct {
 
         // Cache the response body
         if (self.cache.enabled)
-            try self.cache.storage.?.put(keyHasher.final(), body.items, .{ .ttl = self.cache.ttl });
+            try self.cache.storage.?.put(finalHash, body.items, .{ .ttl = self.cache.ttl });
 
         return .{ .body = body, .err = .{} };
     }

@@ -9,7 +9,7 @@ An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](ht
 - [X] Error Handling
 - [X] Bogon IP Support
 - [X] Response Caching
-- [ ] Batch Requests
+- [X] Batch Requests
 - [ ] Summarize IPs
 - [ ] CIDR to IP Range
 - [ ] Reverse DNS Lookup
