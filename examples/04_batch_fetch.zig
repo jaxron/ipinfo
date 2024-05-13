@@ -33,7 +33,15 @@ pub fn main() !void {
 
     // Let's see if it works as intended! (which it should...)
     const hashMap = res.parsed.?.value.map;
-    for (hashMap.keys(), hashMap.values()) |key, value| {
-        std.debug.print("Country for {s} is: {s}\n", .{ key, value });
+
+    // If you want to use the iterator
+    var iterator = hashMap.iterator();
+    while (iterator.next()) |entry| {
+        std.debug.print("Country for {s} is: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
     }
+
+    // // If you want to use the keys and values directly
+    // for (hashMap.keys(), hashMap.values()) |key, value| {
+    //     std.debug.print("Country for {s} is: {s}\n", .{ key, value });
+    // }
 }
