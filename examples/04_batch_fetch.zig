@@ -13,9 +13,12 @@ pub fn main() !void {
     defer c.deinit();
 
     // Get the secret token to be used for the API
-    // For this example, I will be using the IPINFO_TOKEN environment variable.
-    const token = try std.process.getEnvVarOwned(allocator, "IPINFO_TOKEN");
-    defer allocator.free(token);
+    // For this example, I will be using the argument passed to the program.
+    // ./04_batch_fetch.exe -- <token>
+    const argv = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, argv);
+
+    const token = argv[1];
 
     // Getting the country information for 2 of google's IP addresses
     const res = try c.getBatchIPInfo(.{

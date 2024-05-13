@@ -57,6 +57,9 @@ pub fn build(b: *std.Build) void {
         const install_step = b.addInstallArtifact(example_exe, .{});
 
         const run_cmd = b.addRunArtifact(example_exe);
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
         run_cmd.step.dependOn(&install_step.step);
 
         const run_step = b.step(example.name, example.description);
@@ -73,6 +76,9 @@ pub fn build(b: *std.Build) void {
     lib_test.root_module.addImport("cache", cache_mod);
 
     const run_test = b.addRunArtifact(lib_test);
+    if (b.args) |args| {
+        run_test.addArgs(args);
+    }
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_test.step);

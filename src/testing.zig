@@ -68,8 +68,10 @@ test "client: 2 batch IP address requests" {
     defer c.deinit();
 
     // Get secret token
-    const token = try std.process.getEnvVarOwned(allocator, "IPINFO_TOKEN");
-    defer allocator.free(token);
+    const argv = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, argv);
+
+    const token = argv[1];
 
     // Test with batch IP addresses
     const res = try c.getBatchIPInfo(.{
