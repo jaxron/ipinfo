@@ -8,12 +8,12 @@ pub fn main() !void {
 
     // Before you can use the API client, you need to initialize the client
     // and modify any options if you want to
-    var c = try ipinfo.Client.init(gpa.allocator(), .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(gpa.allocator(), .{});
+    defer client.deinit();
 
     // Passing an invalid IP address just for this example
     // ! Please do not copy and paste this
-    const res = try c.getIPInfo(.{ .ipAddress = "invalid" });
+    const res = try client.getIPInfo(.{ .ip_address = "invalid" });
     defer res.deinit();
 
     switch (res.err) {

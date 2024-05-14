@@ -124,32 +124,32 @@ pub const ResultInfo = struct {
 
 /// Contains information needed to make a request
 pub const IPInfoOptions = struct {
-    baseURL: []const u8 = default_base_url,
-    userAgent: []const u8 = default_user_agent,
+    base_url: []const u8 = default_base_url,
+    user_agent: []const u8 = default_user_agent,
 
     /// The token used to authenticate the request
     /// and is left empty by default
-    apiToken: []const u8 = "",
+    api_token: []const u8 = "",
 
     /// The IP address to get information about
     /// and defaults to your own IP address
-    ipAddress: []const u8 = "",
+    ip_address: []const u8 = "",
 };
 
 pub const IPInfoBatchOptions = struct {
-    baseURL: []const u8 = default_base_url,
-    userAgent: []const u8 = default_user_agent,
+    base_url: []const u8 = default_base_url,
+    user_agent: []const u8 = default_user_agent,
 
     /// The token used to authenticate the request
     /// and must be provided
-    apiToken: []const u8,
+    api_token: []const u8,
 
     /// The IP URLs to get information about
     /// in this format: 8.8.8.8/country
-    ipURLs: []const []const u8,
+    ip_urls: []const []const u8,
 
     /// Whether or not to hide invalid/empty results
-    hideInvalid: bool = false,
+    hide_invalid: bool = false,
 };
 
 pub const Client = struct {
@@ -172,21 +172,21 @@ pub const Client = struct {
     /// Returns information for the specified IP URLs
     pub fn getBatchIPInfo(self: *Client, options: IPInfoBatchOptions) !IPInfoBatch {
         // Build the final URL
-        var finalURL = builder.String.init(self.allocator);
-        defer finalURL.deinit();
+        var final_url = builder.String.init(self.allocator);
+        defer final_url.deinit();
 
-        try finalURL.concatAll(&.{ options.baseURL, "batch" });
-        try finalURL.concatIf(options.hideInvalid, "?filter=1");
+        try final_url.concatAll(&.{ options.base_url, "batch" });
+        try final_url.concatIf(options.hide_invalid, "?filter=1");
 
         // Build the payload
-        const payload = try std.json.stringifyAlloc(self.allocator, options.ipURLs, .{});
+        const payload = try std.json.stringifyAlloc(self.allocator, options.ip_urls, .{});
         defer self.allocator.free(payload);
 
         // Make the request
         const done = try self.request.post(.{
-            .url = finalURL.string(),
-            .userAgent = options.userAgent,
-            .apiToken = options.apiToken,
+            .url = final_url.string(),
+            .user_agent = options.user_agent,
+            .api_token = options.api_token,
             .payload = payload,
         });
         const body = done.body;
@@ -212,16 +212,16 @@ pub const Client = struct {
     /// Returns IP information for the specified IP address
     pub fn getIPInfo(self: *Client, options: IPInfoOptions) !IPInfo {
         // Build the final URL
-        var finalURL = builder.String.init(self.allocator);
-        defer finalURL.deinit();
+        var final_url = builder.String.init(self.allocator);
+        defer final_url.deinit();
 
-        try finalURL.concatAll(&.{ options.baseURL, options.ipAddress });
+        try final_url.concatAll(&.{ options.base_url, options.ip_address });
 
         // Make the request
         const done = try self.request.get(.{
-            .url = finalURL.string(),
-            .userAgent = options.userAgent,
-            .apiToken = options.apiToken,
+            .url = final_url.string(),
+            .user_agent = options.user_agent,
+            .api_token = options.api_token,
         });
         const body = done.body;
         const err = done.err;
@@ -249,25 +249,26 @@ pub const Client = struct {
     /// Returns IP information for the specified IP address with a filter for the response
     pub fn getFilteredIPInfo(self: *Client, options: IPInfoOptions, filter: request.Filter) !FilteredIPInfo {
         // Build the final URL
-        var finalURL = builder.String.init(self.allocator);
-        defer finalURL.deinit();
+        var final_url = builder.String.init(self.allocator);
+        defer final_url.deinit();
 
-        try finalURL.concatAll(&.{ options.baseURL, options.ipAddress });
-        try finalURL.concatIf(filter != .none and options.ipAddress.len != 0, "/");
-        try finalURL.concatIf(filter != .none, @tagName(filter));
+        try final_url.concatAll(&.{ options.base_url, options.ip_address });
+        try final_url.concatIf(filter != .none and options.ip_address.len != 0, "/");
+        try final_url.concatIf(filter != .none, @tagName(filter));
 
         // Make the request
         const done = try self.request.get(.{
-            .url = finalURL.string(),
-            .userAgent = options.userAgent,
-            .apiToken = options.apiToken,
+            .url = final_url.string(),
+            .user_agent = options.user_agent,
+            .api_token = options.api_token,
         });
         var body = done.body;
         const err = done.err;
 
         // * Removes the trailing newline character (man i hate this)
-        if (body.items[body.items.len - 1] == '\n')
+        if (body.items[body.items.len - 1] == '\n') {
             _ = body.popOrNull().?;
+        }
 
         // Check if response is unsuccessful
         if (err.status != .ok) {

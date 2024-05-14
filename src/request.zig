@@ -48,15 +48,15 @@ pub const Request = struct {
     /// Required options to make a GET request
     pub const GetOptions = struct {
         url: []const u8,
-        userAgent: []const u8,
-        apiToken: []const u8,
+        user_agent: []const u8,
+        api_token: []const u8,
     };
 
     /// Required options to make a POST request
     pub const PostOptions = struct {
         url: []const u8,
-        userAgent: []const u8,
-        apiToken: []const u8,
+        user_agent: []const u8,
+        api_token: []const u8,
         payload: []const u8,
     };
 
@@ -98,26 +98,26 @@ pub const Request = struct {
     /// Makes a POST request to the given URL
     pub fn post(self: *Request, options: PostOptions) !Result {
         // Build the API token
-        var apiToken = builder.String.init(self.allocator);
-        defer apiToken.deinit();
+        var api_token = builder.String.init(self.allocator);
+        defer api_token.deinit();
 
-        try apiToken.concatAll(&.{ "Bearer ", options.apiToken });
+        try api_token.concatAll(&.{ "Bearer ", options.api_token });
 
         // Build cache key
-        var cacheKey = builder.String.init(self.allocator);
-        defer cacheKey.deinit();
+        var cache_key = builder.String.init(self.allocator);
+        defer cache_key.deinit();
 
-        try cacheKey.concatAll(&.{ options.url, ":", options.payload });
+        try cache_key.concatAll(&.{ options.url, ":", options.payload });
 
-        var keyHasher = std.hash.XxHash3.init(@intCast(std.time.timestamp()));
-        keyHasher.update(cacheKey.string());
+        var key_hasher = std.hash.XxHash3.init(@intCast(std.time.timestamp()));
+        key_hasher.update(cache_key.string());
 
-        const finalHash = try std.fmt.allocPrint(self.allocator, "{d}", .{keyHasher.final()});
-        defer self.allocator.free(finalHash);
+        const final_hash = try std.fmt.allocPrint(self.allocator, "{d}", .{key_hasher.final()});
+        defer self.allocator.free(final_hash);
 
         // Get response from cache if available
-        const cacheRes = self.getCacheResult(finalHash);
-        if (cacheRes != error.NotFound) return cacheRes;
+        const cache_res = self.getCacheResult(final_hash);
+        if (cache_res != error.NotFound) return cache_res;
 
         // Make a request if cache is disabled or not available
         var body = std.ArrayList(u8).init(self.allocator);
@@ -125,8 +125,8 @@ pub const Request = struct {
             .method = .POST,
             .location = .{ .url = options.url },
             .headers = .{
-                .user_agent = .{ .override = options.userAgent },
-                .authorization = .{ .override = apiToken.string() },
+                .user_agent = .{ .override = options.user_agent },
+                .authorization = .{ .override = api_token.string() },
             },
             .extra_headers = &.{
                 .{ .name = "Content-Type", .value = "application/json" },
@@ -154,8 +154,9 @@ pub const Request = struct {
         }
 
         // Cache the response body
-        if (self.cache.enabled)
-            try self.cache.storage.?.put(finalHash, body.items, .{ .ttl = self.cache.ttl });
+        if (self.cache.enabled) {
+            try self.cache.storage.?.put(final_hash, body.items, .{ .ttl = self.cache.ttl });
+        }
 
         return .{ .body = body, .err = .{} };
     }
@@ -163,14 +164,14 @@ pub const Request = struct {
     /// Makes a GET request to the given URL
     pub fn get(self: *Request, options: GetOptions) !Result {
         // Build the API token
-        var apiToken = builder.String.init(self.allocator);
-        defer apiToken.deinit();
+        var api_token = builder.String.init(self.allocator);
+        defer api_token.deinit();
 
-        try apiToken.concatAll(&.{ "Bearer ", options.apiToken });
+        try api_token.concatAll(&.{ "Bearer ", options.api_token });
 
         // Get response from cache if available
-        const cacheRes = self.getCacheResult(options.url);
-        if (cacheRes != error.NotFound) return cacheRes;
+        const cache_res = self.getCacheResult(options.url);
+        if (cache_res != error.NotFound) return cache_res;
 
         // Make a request if cache is disabled or not available
         var body = std.ArrayList(u8).init(self.allocator);
@@ -178,8 +179,8 @@ pub const Request = struct {
             .method = .GET,
             .location = .{ .url = options.url },
             .headers = .{
-                .user_agent = .{ .override = options.userAgent },
-                .authorization = .{ .override = apiToken.string() },
+                .user_agent = .{ .override = options.user_agent },
+                .authorization = .{ .override = api_token.string() },
             },
             .extra_headers = &.{
                 .{ .name = "Accept", .value = "application/json" },
@@ -205,8 +206,9 @@ pub const Request = struct {
         }
 
         // Cache the response body
-        if (self.cache.enabled)
+        if (self.cache.enabled) {
             try self.cache.storage.?.put(options.url, body.items, .{ .ttl = self.cache.ttl });
+        }
 
         return .{ .body = body, .err = .{} };
     }

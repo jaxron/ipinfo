@@ -9,17 +9,17 @@ pub fn main() !void {
 
     // Before you can use the API client, you need to initialize the client
     // and modify any options if you want to
-    var c = try ipinfo.Client.init(gpa.allocator(), .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(gpa.allocator(), .{});
+    defer client.deinit();
 
     // Calling the getIPInfo function without any changes to options
     // will return the information of your own IP address
-    const res = try c.getIPInfo(.{});
+    const res = try client.getIPInfo(.{});
     defer res.deinit();
 
     // You may also pass an IP address to get the information
     // of that IP address
-    const res2 = try c.getIPInfo(.{ .ipAddress = "8.8.8.8" });
+    const res2 = try client.getIPInfo(.{ .ip_address = "8.8.8.8" });
     defer res2.deinit();
 
     // Let's see if it works as intended! (which it should...)

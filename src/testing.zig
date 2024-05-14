@@ -22,11 +22,11 @@ test "string_builder: concatenation" {
 
 test "client: valid IP address using own IP" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with a valid IP address
-    const res = try c.getIPInfo(.{});
+    const res = try client.getIPInfo(.{});
     defer res.deinit();
 
     try t.expect(res.err == .Success);
@@ -34,12 +34,12 @@ test "client: valid IP address using own IP" {
 
 test "client: valid IP address using 8.8.8.8" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with a valid IP address
-    const res = try c.getIPInfo(.{
-        .ipAddress = "8.8.8.8",
+    const res = try client.getIPInfo(.{
+        .ip_address = "8.8.8.8",
     });
     defer res.deinit();
 
@@ -49,12 +49,12 @@ test "client: valid IP address using 8.8.8.8" {
 
 test "client: valid IP address with filter" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with valid IP address and filter
-    const res = try c.getFilteredIPInfo(.{
-        .ipAddress = "8.8.8.8",
+    const res = try client.getFilteredIPInfo(.{
+        .ip_address = "8.8.8.8",
     }, .country);
     defer res.deinit();
 
@@ -64,8 +64,8 @@ test "client: valid IP address with filter" {
 
 test "client: 2 batch IP address requests" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Get secret token
     const argv = try std.process.argsAlloc(allocator);
@@ -74,13 +74,13 @@ test "client: 2 batch IP address requests" {
     const token = argv[1];
 
     // Test with batch IP addresses
-    const res = try c.getBatchIPInfo(.{
-        .apiToken = token,
-        .ipURLs = &.{
+    const res = try client.getBatchIPInfo(.{
+        .api_token = token,
+        .ip_urls = &.{
             "8.8.8.8/country",
             "8.8.8.9/hostname",
         },
-        .hideInvalid = true,
+        .hide_invalid = true,
     });
     defer res.deinit();
 
@@ -89,13 +89,13 @@ test "client: 2 batch IP address requests" {
     try t.expectEqualStrings("US", res.parsed.?.value.map.values()[0]);
 
     // Test the cache with the same batch IP addresses
-    const res2 = try c.getBatchIPInfo(.{
-        .apiToken = token,
-        .ipURLs = &.{
+    const res2 = try client.getBatchIPInfo(.{
+        .api_token = token,
+        .ip_urls = &.{
             "8.8.8.8/country",
             "8.8.8.9/hostname",
         },
-        .hideInvalid = true,
+        .hide_invalid = true,
     });
     defer res2.deinit();
 
@@ -106,12 +106,12 @@ test "client: 2 batch IP address requests" {
 
 test "client: invalid IP address" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with an invalid IP address
-    const res = try c.getIPInfo(.{
-        .ipAddress = "invalid",
+    const res = try client.getIPInfo(.{
+        .ip_address = "invalid",
     });
     defer res.deinit();
 
@@ -127,17 +127,17 @@ test "client: invalid IP address" {
 
 test "client: 2 valid IP address with cache" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with a valid IP address
-    const res = try c.getIPInfo(.{});
+    const res = try client.getIPInfo(.{});
     defer res.deinit();
 
     try t.expect(res.err == .Success);
 
     // Test with a valid IP address
-    const res2 = try c.getIPInfo(.{});
+    const res2 = try client.getIPInfo(.{});
     defer res2.deinit();
 
     try t.expect(res2.err == .Success);
@@ -148,19 +148,19 @@ test "client: 2 valid IP address with cache" {
 
 test "client: 2 valid IP address without cache" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{
+    var client = try ipinfo.Client.init(allocator, .{
         .enabled = false,
     });
-    defer c.deinit();
+    defer client.deinit();
 
     // Test with a valid IP address
-    const res = try c.getIPInfo(.{});
+    const res = try client.getIPInfo(.{});
     defer res.deinit();
 
     try t.expect(res.err == .Success);
 
     // Test with a valid IP address
-    const res2 = try c.getIPInfo(.{});
+    const res2 = try client.getIPInfo(.{});
     defer res2.deinit();
 
     try t.expect(res2.err == .Success);
@@ -171,12 +171,12 @@ test "client: 2 valid IP address without cache" {
 
 test "client: bogon IP address" {
     const allocator = t.allocator;
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Test with a bogon IP address
-    const res = try c.getIPInfo(.{
-        .ipAddress = "0.0.0.0",
+    const res = try client.getIPInfo(.{
+        .ip_address = "0.0.0.0",
     });
     defer res.deinit();
 

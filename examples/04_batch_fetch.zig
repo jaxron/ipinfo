@@ -9,8 +9,8 @@ pub fn main() !void {
 
     // Before you can use the API client, you need to initialize the client
     // and modify any options if you want to
-    var c = try ipinfo.Client.init(allocator, .{});
-    defer c.deinit();
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
 
     // Get the secret token to be used for the API
     // For this example, I will be using the argument passed to the program.
@@ -21,13 +21,13 @@ pub fn main() !void {
     const token = argv[1];
 
     // Getting the country information for 2 of google's IP addresses
-    const res = try c.getBatchIPInfo(.{
-        .apiToken = token,
-        .ipURLs = &.{
+    const res = try client.getBatchIPInfo(.{
+        .api_token = token,
+        .ip_urls = &.{
             "8.8.8.8/country",
             "8.8.4.4/country",
         },
-        .hideInvalid = true,
+        .hide_invalid = true,
     });
     defer res.deinit();
 
