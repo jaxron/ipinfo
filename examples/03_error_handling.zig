@@ -2,17 +2,16 @@ const std = @import("std");
 const ipinfo = @import("ipinfo");
 
 pub fn main() !void {
-    // Initialize the allocator of your choice :)
+    // The explanation for all these basic components can be found in
+    // the `01_basic_fetch.zig` file. Do take a look at it if you haven't!
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    // Before you can use the API client, you need to initialize the client
-    // and modify any options if you want to
     var client = try ipinfo.Client.init(gpa.allocator(), .{});
     defer client.deinit();
 
     // Passing an invalid IP address just for this example
-    // ! Please do not copy and paste this
+    // but please do not copy this in your code.
     const res = try client.getIPInfo(.{ .ip_address = "invalid" });
     defer res.deinit();
 
