@@ -26,8 +26,8 @@ An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](ht
     .version = "1.0.0",
     .dependencies = .{
 +       .ipinfo = .{
-+           .url = "https://github.com/jaxron/ipinfo/archive/5fe224ff495bc5b78b76771dca22122733f8d531.tar.gz",
-+           .hash = "1220da996c65cda6cdfbe0ca65e6ee9323971d94f46618adadd39099087d36f468c4",
++           .url = "https://github.com/jaxron/ipinfo/archive/f8cd65da1a2c089d338dfcefc6cede2df9d577f3.tar.gz",
++           .hash = "1220128f4abf9dd3a09cf47f939b0a7779482ef7d4df977d3b9610b94c0728cb4e77",
 +       },
     },
 }
