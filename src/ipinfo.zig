@@ -12,16 +12,16 @@ pub fn main() !void {}
 pub const Error = union(enum) {
     /// Request was successful with code 200
     Success,
-    /// Request failed with a specific error
+    /// Request failed with an error
     /// different from 200
     Failed: request.Error,
 };
 
-/// Contains information about the batch request
+/// Contains response information about the batch request
 pub const IPInfoBatch = struct {
-    /// The response body
+    /// Contains response body
     body: std.ArrayList(u8),
-    /// The parsed values from the response body
+    /// Contains parsed values from the response body
     parsed: ?std.json.Parsed(std.json.ArrayHashMap([]const u8)) = null,
     /// Information about the error if the request failed
     err: Error,
@@ -35,11 +35,11 @@ pub const IPInfoBatch = struct {
     }
 };
 
-/// Contains information about the basic request
+/// Contains response information about the basic query request
 pub const IPInfo = struct {
-    /// The response body
+    /// Contains response body
     body: std.ArrayList(u8),
-    /// The parsed values from the response body
+    /// Contains parsed values from the response body
     parsed: ?std.json.Parsed(ResultInfo) = null,
     /// Information about the error if the request failed
     err: Error,
@@ -53,11 +53,11 @@ pub const IPInfo = struct {
     }
 };
 
-/// Contains filtered values from the response body
+/// Contains response information about the filtered query request
 pub const FilteredIPInfo = struct {
-    /// The type of filter used
+    /// Filter that was applied
     filter: request.Filter,
-    /// The plain response body
+    /// Plain response body
     value: ?std.ArrayList(u8) = null,
     /// Information about the error if the request failed
     err: Error,
@@ -68,8 +68,8 @@ pub const FilteredIPInfo = struct {
     }
 };
 
-/// Contains information about a given IP
-/// which is parsed from the response body
+/// Contains all potential information about
+/// a given IP as provided by the API
 pub const ResultInfo = struct {
     ip: ?[]const u8 = null,
     hostname: ?[]const u8 = null,
@@ -122,25 +122,26 @@ pub const ResultInfo = struct {
     readme: ?[]const u8 = null,
 };
 
-/// Contains information needed to make a request
+/// Required fields to make the basic query request
 pub const IPInfoOptions = struct {
     base_url: []const u8 = default_base_url,
     user_agent: []const u8 = default_user_agent,
 
-    /// The token used to authenticate the request
-    /// and is left empty by default
+    /// Used to authenticate the request
+    /// and is not required
     api_token: []const u8 = "",
 
-    /// The IP address to get information about
+    /// The IP address to query information about
     /// and defaults to your own IP address
     ip_address: []const u8 = "",
 };
 
+/// Required fields to make the batch query request
 pub const IPInfoBatchOptions = struct {
     base_url: []const u8 = default_base_url,
     user_agent: []const u8 = default_user_agent,
 
-    /// The token used to authenticate the request
+    /// Used to authenticate the request
     /// and must be provided
     api_token: []const u8,
 
@@ -156,7 +157,7 @@ pub const Client = struct {
     allocator: std.mem.Allocator,
     request: request.Request,
 
-    /// Initializes the client with the specified allocator
+    /// Prepares the client to make requests
     pub fn init(allocator: std.mem.Allocator, config: request.CacheConfig) !Client {
         return .{
             .allocator = allocator,
@@ -169,20 +170,21 @@ pub const Client = struct {
         self.request.deinit();
     }
 
-    /// Returns information for the specified IP URLs
+    /// Makes a batch API request and returns the information
+    /// for the specified IP URLs
     pub fn getBatchIPInfo(self: *Client, options: IPInfoBatchOptions) !IPInfoBatch {
-        // Build the final URL
+        // Build the final URL for the batch request
         var final_url = builder.String.init(self.allocator);
         defer final_url.deinit();
 
         try final_url.concatAll(&.{ options.base_url, "batch" });
         try final_url.concatIf(options.hide_invalid, "?filter=1");
 
-        // Build the payload
+        // Build the payload to be sent in the batch request
         const payload = try std.json.stringifyAlloc(self.allocator, options.ip_urls, .{});
         defer self.allocator.free(payload);
 
-        // Make the request
+        // Make the request with the given options and payload
         const done = try self.request.post(.{
             .url = final_url.string(),
             .user_agent = options.user_agent,
@@ -192,7 +194,7 @@ pub const Client = struct {
         const body = done.body;
         const err = done.err;
 
-        // Check if response is unsuccessful
+        // Check if response is unsuccessful and parse the error message
         if (err.status != .ok) {
             return .{
                 .body = body,
@@ -200,7 +202,6 @@ pub const Client = struct {
             };
         }
 
-        // Parse if the request was successful
         const parsed = try std.json.parseFromSlice(std.json.ArrayHashMap([]const u8), self.allocator, body.items, .{});
         return .{
             .parsed = parsed,
@@ -209,15 +210,16 @@ pub const Client = struct {
         };
     }
 
-    /// Returns IP information for the specified IP address
+    /// Makes a basic API request and returns the information
+    /// for the specified IP address
     pub fn getIPInfo(self: *Client, options: IPInfoOptions) !IPInfo {
-        // Build the final URL
+        // Build the final URL for the basic request
         var final_url = builder.String.init(self.allocator);
         defer final_url.deinit();
 
         try final_url.concatAll(&.{ options.base_url, options.ip_address });
 
-        // Make the request
+        // Make the request with the given options
         const done = try self.request.get(.{
             .url = final_url.string(),
             .user_agent = options.user_agent,
@@ -226,7 +228,7 @@ pub const Client = struct {
         const body = done.body;
         const err = done.err;
 
-        // Check if response is unsuccessful
+        // Check if response is unsuccessful and parse the error message
         if (err.status != .ok) {
             return .{
                 .body = body,
@@ -234,11 +236,9 @@ pub const Client = struct {
             };
         }
 
-        // Parse if the request was successful
         const parsed = try std.json.parseFromSlice(ResultInfo, self.allocator, body.items, .{
             .ignore_unknown_fields = true,
         });
-
         return .{
             .parsed = parsed,
             .body = body,
@@ -246,9 +246,10 @@ pub const Client = struct {
         };
     }
 
-    /// Returns IP information for the specified IP address with a filter for the response
+    /// Similar to getIPInfo() but makes a basic API request and returns the information
+    /// for the specified IP address with a filter for the response
     pub fn getFilteredIPInfo(self: *Client, options: IPInfoOptions, filter: request.Filter) !FilteredIPInfo {
-        // Build the final URL
+        // Build the final URL for the filtered request
         var final_url = builder.String.init(self.allocator);
         defer final_url.deinit();
 
@@ -256,7 +257,7 @@ pub const Client = struct {
         try final_url.concatIf(filter != .none and options.ip_address.len != 0, "/");
         try final_url.concatIf(filter != .none, @tagName(filter));
 
-        // Make the request
+        // Make the request with the given options
         const done = try self.request.get(.{
             .url = final_url.string(),
             .user_agent = options.user_agent,
@@ -265,12 +266,13 @@ pub const Client = struct {
         var body = done.body;
         const err = done.err;
 
-        // * Removes the trailing newline character (man i hate this)
+        // Removes the trailing newline character that
+        // comes with the response body sometimes
         if (body.items[body.items.len - 1] == '\n') {
             _ = body.popOrNull().?;
         }
 
-        // Check if response is unsuccessful
+        // Check if response is unsuccessful and parse the error message
         if (err.status != .ok) {
             return .{
                 .filter = filter,
@@ -279,7 +281,6 @@ pub const Client = struct {
             };
         }
 
-        // Parse if the request was successful
         return .{
             .filter = filter,
             .value = body,
