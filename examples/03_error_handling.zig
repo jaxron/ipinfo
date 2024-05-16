@@ -12,17 +12,13 @@ pub fn main() !void {
 
     // Passing an invalid IP address just for this example
     // but please do not copy this in your code.
-    const res = try client.getIPInfo(.{ .ip_address = "invalid" });
+    const res = try client.basic.getIPInfo(.{ .ip_address = "invalid" });
     defer res.deinit();
 
-    switch (res.err) {
-        // Handle the failed case
-        .Failed => |err| {
-            std.debug.print("Failed with error code {d}\n", .{@intFromEnum(err.status)});
-            std.debug.print("Error title: {s}\n", .{err.title});
-            std.debug.print("Error message: {s}\n", .{err.message});
-        },
-        // It should never reach here because we have an invalid input
-        else => unreachable,
+    // Handle the failed case
+    if (res.hasError()) {
+        std.debug.print("Failed with error code {d}\n", .{res.err.?.status});
+        std.debug.print("Error title: {s}\n", .{res.err.?.@"error".title});
+        std.debug.print("Error message: {s}\n", .{res.err.?.@"error".message});
     }
 }

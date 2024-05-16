@@ -27,6 +27,11 @@ const examples = [_]Example{
         .source_file = .{ .path = "examples/04_batch_fetch.zig" },
         .description = "Batch fetching of IP information",
     },
+    .{
+        .name = "ip_summary",
+        .source_file = .{ .path = "examples/05_ip_summary.zig" },
+        .description = "Retrieving a summary of IP information",
+    },
 };
 
 pub fn build(b: *std.Build) void {

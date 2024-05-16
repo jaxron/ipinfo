@@ -20,7 +20,7 @@ pub fn main() !void {
     const token = argv[1];
 
     // Getting the country information for 2 of google's IP addresses
-    const res = try client.getBatchIPInfo(.{
+    const res = try client.basic.getBatchIPInfo(.{
         .api_token = token,
         .ip_urls = &.{
             "8.8.8.8/country",

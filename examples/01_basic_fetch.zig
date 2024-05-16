@@ -16,12 +16,12 @@ pub fn main() !void {
     // Calling the getIPInfo() function will return the information of
     // the given IP address. In this case, we're not passing any IP address
     // so it will return the information of our own IP address.
-    const res = try client.getIPInfo(.{});
+    const res = try client.basic.getIPInfo(.{});
     defer res.deinit();
 
     // Hence, you may also pass an IP address to get the information
     // of that IP address
-    const res2 = try client.getIPInfo(.{ .ip_address = "8.8.8.8" });
+    const res2 = try client.basic.getIPInfo(.{ .ip_address = "8.8.8.8" });
     defer res2.deinit();
 
     // Let's print the information of our own IP address and Google's IP address

@@ -1,6 +1,9 @@
 # ipinfo
 
-An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](https://ziglang.org/). Not recommended for production yet.
+An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](https://ziglang.org/). 
+
+> [!WARNING]
+> This library is still WIP. Not recommended for production yet.
 
 ## Features
 
@@ -10,7 +13,7 @@ An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](ht
 - [X] Bogon IP Support
 - [X] Response Caching
 - [X] Batch Requests
-- [ ] Summarize IPs
+- [X] Summarize IPs
 - [ ] CIDR to IP Range
 - [ ] Reverse DNS Lookup
 - [ ] Pingable IP Finder

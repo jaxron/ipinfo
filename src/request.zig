@@ -8,7 +8,7 @@ const builder = @import("string_builder.zig");
 /// and speed up the application
 pub const CacheConfig = struct {
     enabled: bool = true,
-    storage: ?cache.Cache([]u8) = undefined,
+    storage: ?cache.Cache([]u8) = null,
     max_items: u32 = 2000,
     ttl: u32 = 3600,
 };
@@ -31,14 +31,6 @@ pub const Filter = union(enum) {
     privacy,
     abuse,
     domains,
-};
-
-/// Used for storing error messages that
-/// result from a mistake in the request
-pub const Error = struct {
-    status: std.http.Status = .ok,
-    title: []const u8 = "",
-    message: []const u8 = "",
 };
 
 /// A helper struct that allows for
@@ -65,16 +57,22 @@ pub const Request = struct {
 
     /// Expected output of the helper
     /// functions called in this struct
-    pub const Result = struct { body: std.ArrayList(u8), err: Error };
+    pub fn Result(comptime T: type) type {
+        return struct {
+            body: std.ArrayList(u8),
+            err: ?std.json.Parsed(T) = null,
 
-    /// Expected error format from the response
-    pub const ResultError = struct {
-        status: u10,
-        @"error": struct {
-            title: []const u8,
-            message: []const u8,
-        },
-    };
+            /// Releases all associated resources with the result
+            pub fn deinit(self: *const Result(T)) void {
+                if (self.err != null) self.err.?.deinit();
+            }
+
+            /// Returns true if the request had an error
+            pub fn hasError(self: *const Result(T)) bool {
+                return self.err != null;
+            }
+        };
+    }
 
     /// Prepares the client to make requests
     pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !Request {
@@ -102,7 +100,7 @@ pub const Request = struct {
 
     /// Returns the result of a POST request made based
     /// on the given options
-    pub fn post(self: *Request, options: PostOptions) !Result {
+    pub fn post(self: *Request, comptime error_type: type, options: PostOptions) !Result(error_type) {
         // Build the API token for the request
         var api_token = builder.String.init(self.allocator);
         defer api_token.deinit();
@@ -116,14 +114,14 @@ pub const Request = struct {
 
         try cache_key.concatAll(&.{ options.url, ":", options.payload });
 
-        var key_hasher = std.hash.XxHash3.init(@intCast(std.time.timestamp()));
+        var key_hasher = std.hash.XxHash3.init(0);
         key_hasher.update(cache_key.string());
 
         const final_hash = try std.fmt.allocPrint(self.allocator, "{d}", .{key_hasher.final()});
         defer self.allocator.free(final_hash);
 
         // Get response from cache if available
-        const cache_res = self.getCacheResult(final_hash);
+        const cache_res = self.getCacheResult(error_type, final_hash);
         if (cache_res != error.NotFound) return cache_res;
 
         // Make a request if cache is disabled or not found
@@ -147,17 +145,8 @@ pub const Request = struct {
 
         // Check if response is unsuccessful and parse the error message
         if (res.status != .ok) {
-            const parsed = try std.json.parseFromSlice(ResultError, self.allocator, body.items, .{});
-            defer parsed.deinit();
-
-            return .{
-                .body = body,
-                .err = .{
-                    .status = @enumFromInt(parsed.value.status),
-                    .title = parsed.value.@"error".title,
-                    .message = parsed.value.@"error".message,
-                },
-            };
+            const parsed = try std.json.parseFromSlice(error_type, self.allocator, body.items, .{});
+            return .{ .body = body, .err = parsed };
         }
 
         // Cache the response body
@@ -165,12 +154,12 @@ pub const Request = struct {
             try self.cache.storage.?.put(final_hash, body.items, .{ .ttl = self.cache.ttl });
         }
 
-        return .{ .body = body, .err = .{} };
+        return .{ .body = body };
     }
 
     /// Returns the result of a GET request made based
     /// on the given options
-    pub fn get(self: *Request, options: GetOptions) !Result {
+    pub fn get(self: *Request, comptime error_type: type, options: GetOptions) !Result(error_type) {
         // Build the API token for the request
         var api_token = builder.String.init(self.allocator);
         defer api_token.deinit();
@@ -178,7 +167,7 @@ pub const Request = struct {
         try api_token.concatAll(&.{ "Bearer ", options.api_token });
 
         // Get response from cache if available
-        const cache_res = self.getCacheResult(options.url);
+        const cache_res = self.getCacheResult(error_type, options.url);
         if (cache_res != error.NotFound) return cache_res;
 
         // Make a request if cache is disabled or not found
@@ -200,17 +189,8 @@ pub const Request = struct {
 
         // Check if response is unsuccessful and parse the error message
         if (res.status != .ok) {
-            const parsed = try std.json.parseFromSlice(ResultError, self.allocator, body.items, .{});
-            defer parsed.deinit();
-
-            return .{
-                .body = body,
-                .err = .{
-                    .status = @enumFromInt(parsed.value.status),
-                    .title = parsed.value.@"error".title,
-                    .message = parsed.value.@"error".message,
-                },
-            };
+            const parsed = try std.json.parseFromSlice(error_type, self.allocator, body.items, .{});
+            return .{ .body = body, .err = parsed };
         }
 
         // Cache the response body
@@ -218,12 +198,12 @@ pub const Request = struct {
             try self.cache.storage.?.put(options.url, body.items, .{ .ttl = self.cache.ttl });
         }
 
-        return .{ .body = body, .err = .{} };
+        return .{ .body = body };
     }
 
     /// Returns a cached response body if available.
     /// Otherwise, returns error.NotFound
-    fn getCacheResult(self: *Request, key: []const u8) !Result {
+    fn getCacheResult(self: *Request, error_type: type, key: []const u8) !Result(error_type) {
         if (self.cache.enabled) {
             if (self.cache.storage.?.get(key)) |entry| {
                 defer entry.release();
@@ -232,7 +212,7 @@ pub const Request = struct {
                 var body = std.ArrayList(u8).init(self.allocator);
                 try body.appendSlice(entry.value);
 
-                return .{ .body = body, .err = .{} };
+                return .{ .body = body };
             }
         }
         return error.NotFound;

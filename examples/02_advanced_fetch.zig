@@ -12,7 +12,7 @@ pub fn main() !void {
 
     // This time, let's try to use google's IP but we will set a filter such that
     // the result will only contain the city.
-    const res = try client.getFilteredIPInfo(.{ .ip_address = "8.8.8.8" }, .city);
+    const res = try client.basic.getFilteredIPInfo(.{ .ip_address = "8.8.8.8" }, .city);
     defer res.deinit();
 
     // // Also, if you do want to pass in your own api token, you can do so by:
