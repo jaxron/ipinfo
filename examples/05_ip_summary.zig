@@ -11,22 +11,20 @@ pub fn main() !void {
     var client = try ipinfo.Client.init(allocator, .{});
     defer client.deinit();
 
-    // Getting the country information for 2 of google's IP addresses
+    // Getting a summary of the IP addresses.
     const res = try client.extra.getIPSummary(.{
-        .ips = &.{
-            "64.233.160.0", "64.233.160.1", "64.233.160.2", "64.233.160.3", "64.233.160.4", "64.233.160.5", "64.233.160.6", "64.233.160.7", "64.233.160.8", "64.233.160.9",
-        },
+        .ips = &.{ "8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "94.140.14.14", "94.140.15.15", "9.9.9.9", "149.112.112.112", "76.76.2.0", "76.76.10.0" },
     });
     defer res.deinit();
 
     // This contains all the available data for the IP addresses.
     const data = res.parsed.?.value;
 
-    // For instance, we might want to check whether the IPs are
+    // For example, we might want to check whether the IPs are
     // from hosting, relay, tor or proxy.
     const hashMap = data.privacy.?.map;
 
-    // Let's print out the info we want to see.
+    // Let's print out the info we received using an iterator!
     var iterator = hashMap.iterator();
     while (iterator.next()) |entry| {
         std.debug.print("Data for {s} is: {d}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
