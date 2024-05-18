@@ -14,10 +14,10 @@ An unofficial API wrapper for [ipinfo.io](https://ipinfo.io) written in [Zig](ht
 - [X] Response Caching
 - [X] Batch Requests
 - [X] Summarize IPs
+- [X] IP Mapping
 - [ ] CIDR to IP Range
 - [ ] Reverse DNS Lookup
 - [ ] Pingable IP Finder
-- [ ] IP Mapping
 
 ## Installation
 
