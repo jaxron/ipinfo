@@ -32,6 +32,11 @@ const examples = [_]Example{
         .source_file = .{ .path = "examples/05_ip_summary.zig" },
         .description = "Retrieving a summary of IP information",
     },
+    .{
+        .name = "ip_map",
+        .source_file = .{ .path = "examples/06_ip_map.zig" },
+        .description = "Mapping a list of IP addresses",
+    },
 };
 
 pub fn build(b: *std.Build) void {

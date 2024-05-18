@@ -210,3 +210,42 @@ test "extra: invalid IP summary" {
     try t.expect(res.hasError());
     try t.expectEqualStrings("The list should have at least 10 distinct IPs", res.err.?.@"error");
 }
+
+test "extra: valid IP map" {
+    const allocator = t.allocator;
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
+
+    // Test with valid IP addresses
+    const map = try client.extra.getIPMap(.{
+        .ips = &.{ "8.8.8.8", "8.8.4.4" },
+    });
+    defer map.deinit();
+
+    try t.expect(!map.hasError());
+
+    // Test with the given report URL
+    const report = try client.extra.getIPMapReport(.{
+        .report_url = map.parsed.?.value.reportUrl,
+    });
+    defer report.deinit();
+
+    try t.expect(!report.hasError());
+    try t.expectEqual(1, report.parsed.?.value.numCountries.?);
+}
+
+test "extra: invalid IP map" {
+    const allocator = t.allocator;
+    var client = try ipinfo.Client.init(allocator, .{});
+    defer client.deinit();
+
+    // Test with invalid IP addresses
+    const res = try client.extra.getIPMap(.{
+        .ips = &.{"invalid"},
+    });
+    defer res.deinit();
+
+    try t.expect(res.hasError());
+    try t.expectEqualStrings("No IPs Found", res.err.?.title);
+    try t.expectEqualStrings("There were no valid IPs in the text.", res.err.?.message);
+}

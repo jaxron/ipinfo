@@ -45,6 +45,11 @@ pub const Request = struct {
         url: []const u8,
         user_agent: []const u8,
         api_token: []const u8,
+
+        /// The accept header may cause a request
+        /// to return unintended results. One case
+        /// would be in `extra.getIPMapReport`.
+        remove_accept_header: bool = false,
     };
 
     /// Required fields to make a POST request
@@ -170,6 +175,14 @@ pub const Request = struct {
         const cache_res = self.getCacheResult(error_type, options.url);
         if (cache_res != error.NotFound) return cache_res;
 
+        // Prepare the extra headers for the request
+        var extra_headers = std.ArrayList(std.http.Header).init(self.allocator);
+        defer extra_headers.deinit();
+
+        if (!options.remove_accept_header) {
+            try extra_headers.append(.{ .name = "Accept", .value = "application/json" });
+        }
+
         // Make a request if cache is disabled or not found
         var body = std.ArrayList(u8).init(self.allocator);
         const res = try self.client.fetch(.{
@@ -179,9 +192,7 @@ pub const Request = struct {
                 .user_agent = .{ .override = options.user_agent },
                 .authorization = .{ .override = api_token.string() },
             },
-            .extra_headers = &.{
-                .{ .name = "Accept", .value = "application/json" },
-            },
+            .extra_headers = extra_headers.items,
             .response_storage = .{
                 .dynamic = &body,
             },
