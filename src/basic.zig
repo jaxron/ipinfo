@@ -3,35 +3,12 @@ const builder = @import("string_builder.zig");
 const request = @import("request.zig");
 const ipinfo = @import("ipinfo.zig");
 
-/// Contains response information about the batch request
-pub const IPInfoBatch = struct {
-    /// Contains response body
-    body: std.ArrayList(u8),
-    /// Contains parsed values from the response body
-    parsed: ?std.json.Parsed(std.json.ArrayHashMap([]const u8)) = null,
-    /// Information about the error if the request failed
-    err: ?ResultError = null,
-
-    /// Releases all allocated memory
-    pub fn deinit(self: *const IPInfoBatch) void {
-        if (!self.hasError()) {
-            self.parsed.?.deinit();
-        }
-        self.body.deinit();
-    }
-
-    /// Returns true if the request had an error
-    pub fn hasError(self: *const IPInfoBatch) bool {
-        return self.err != null;
-    }
-};
-
 /// Contains response information about the basic query request
 pub const IPInfo = struct {
     /// Contains response body
     body: std.ArrayList(u8),
     /// Contains parsed values from the response body
-    parsed: ?std.json.Parsed(ResultInfo) = null,
+    parsed: ?std.json.Parsed(IPResultInfo) = null,
     /// Information about the error if the request failed
     err: ?ResultError = null,
 
@@ -49,29 +26,9 @@ pub const IPInfo = struct {
     }
 };
 
-/// Contains response information about the filtered query request
-pub const FilteredIPInfo = struct {
-    /// Filter that was applied
-    filter: request.Filter,
-    /// Plain response body
-    value: ?std.ArrayList(u8) = null,
-    /// Information about the error if the request failed
-    err: ?ResultError = null,
-
-    /// Releases all allocated memory
-    pub fn deinit(self: *const FilteredIPInfo) void {
-        self.value.?.deinit();
-    }
-
-    /// Returns true if the request had an error
-    pub fn hasError(self: *const FilteredIPInfo) bool {
-        return self.err != null;
-    }
-};
-
 /// Contains all potential information about
 /// a given IP as provided by the API
-pub const ResultInfo = struct {
+pub const IPResultInfo = struct {
     ip: ?[]const u8 = null,
     hostname: ?[]const u8 = null,
     bogon: ?bool = null,
@@ -135,6 +92,69 @@ pub const IPInfoOptions = struct {
     /// The IP address to query information about
     /// and defaults to your own IP address
     ip_address: []const u8 = "",
+};
+
+/// Contains response information about the filtered query request
+pub const FilteredIPInfo = struct {
+    /// Filter that was applied
+    filter: IPInfoFilter,
+    /// Plain response body
+    value: ?std.ArrayList(u8) = null,
+    /// Information about the error if the request failed
+    err: ?ResultError = null,
+
+    /// Releases all allocated memory
+    pub fn deinit(self: *const FilteredIPInfo) void {
+        self.value.?.deinit();
+    }
+
+    /// Returns true if the request had an error
+    pub fn hasError(self: *const FilteredIPInfo) bool {
+        return self.err != null;
+    }
+};
+
+/// Used for filtering the response
+pub const IPInfoFilter = union(enum) {
+    none,
+    ip,
+    hostname,
+    anycast,
+    city,
+    region,
+    country,
+    loc,
+    org,
+    postal,
+    timezone,
+    asn,
+    company,
+    privacy,
+    abuse,
+    domains,
+};
+
+/// Contains response information about the batch request
+pub const IPInfoBatch = struct {
+    /// Contains response body
+    body: std.ArrayList(u8),
+    /// Contains parsed values from the response body
+    parsed: ?std.json.Parsed(std.json.ArrayHashMap([]const u8)) = null,
+    /// Information about the error if the request failed
+    err: ?ResultError = null,
+
+    /// Releases all allocated memory
+    pub fn deinit(self: *const IPInfoBatch) void {
+        if (!self.hasError()) {
+            self.parsed.?.deinit();
+        }
+        self.body.deinit();
+    }
+
+    /// Returns true if the request had an error
+    pub fn hasError(self: *const IPInfoBatch) bool {
+        return self.err != null;
+    }
 };
 
 /// Required fields to make the batch query request
@@ -248,7 +268,7 @@ pub const Basic = struct {
             };
         }
 
-        const parsed = try std.json.parseFromSlice(ResultInfo, self.allocator, body.items, .{
+        const parsed = try std.json.parseFromSlice(IPResultInfo, self.allocator, body.items, .{
             .ignore_unknown_fields = true,
         });
 
@@ -260,7 +280,7 @@ pub const Basic = struct {
 
     /// Similar to getIPInfo() but makes a basic API request and returns the information
     /// for the specified IP address with a filter for the response
-    pub fn getFilteredIPInfo(self: *Basic, options: IPInfoOptions, filter: request.Filter) !FilteredIPInfo {
+    pub fn getFilteredIPInfo(self: *Basic, options: IPInfoOptions, filter: IPInfoFilter) !FilteredIPInfo {
         // Build the final URL for the filtered request
         var final_url = builder.String.init(self.allocator);
         defer final_url.deinit();

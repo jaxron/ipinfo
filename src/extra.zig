@@ -26,6 +26,11 @@ pub const IPSummary = struct {
     }
 };
 
+/// Expected error format from the IP summary response
+pub const SummaryResultError = struct {
+    @"error": []const u8,
+};
+
 /// Contains all potential information about
 /// a given IP as provided by the API
 const SummaryInfo = struct {
@@ -45,6 +50,18 @@ const SummaryInfo = struct {
     privacyServices: ?std.json.ArrayHashMap(u32) = null,
     regions: ?std.json.ArrayHashMap(u32) = null,
     routes: ?std.json.ArrayHashMap(u32) = null,
+};
+
+/// Required fields to make the summary request
+pub const IPSummaryOptions = struct {
+    base_url: []const u8 = ipinfo.default_base_url,
+    user_agent: []const u8 = ipinfo.default_user_agent,
+
+    /// Used to authenticate the request
+    /// and is not required
+    api_token: []const u8 = "",
+
+    ips: []const []const u8,
 };
 
 /// Contains response information about the ip map request
@@ -68,6 +85,24 @@ pub const IPMap = struct {
     pub fn hasError(self: *const IPMap) bool {
         return self.err != null;
     }
+};
+
+/// Expected error format from the IP map response
+pub const MapResultError = struct {
+    title: []const u8,
+    message: []const u8,
+};
+
+/// Required fields to make the map request
+pub const IPMapOptions = struct {
+    base_url: []const u8 = ipinfo.default_base_url,
+    user_agent: []const u8 = ipinfo.default_user_agent,
+
+    /// Used to authenticate the request
+    /// and is not required
+    api_token: []const u8 = "",
+
+    ips: []const []const u8,
 };
 
 /// Contains the report URL of the map request
@@ -118,30 +153,6 @@ pub const IPMapReportInfo = struct {
     total: ?u32 = null,
 };
 
-/// Required fields to make the summary request
-pub const IPSummaryOptions = struct {
-    base_url: []const u8 = ipinfo.default_base_url,
-    user_agent: []const u8 = ipinfo.default_user_agent,
-
-    /// Used to authenticate the request
-    /// and is not required
-    api_token: []const u8 = "",
-
-    ips: []const []const u8,
-};
-
-/// Required fields to make the map request
-pub const IPMapOptions = struct {
-    base_url: []const u8 = ipinfo.default_base_url,
-    user_agent: []const u8 = ipinfo.default_user_agent,
-
-    /// Used to authenticate the request
-    /// and is not required
-    api_token: []const u8 = "",
-
-    ips: []const []const u8,
-};
-
 /// Required fields to make the map report request
 pub const IPMapReportOptions = struct {
     user_agent: []const u8 = ipinfo.default_user_agent,
@@ -151,17 +162,6 @@ pub const IPMapReportOptions = struct {
     api_token: []const u8 = "",
 
     report_url: []const u8,
-};
-
-/// Expected error format from the IP summary response
-pub const SummaryResultError = struct {
-    @"error": []const u8,
-};
-
-/// Expected error format from the IP map response
-pub const MapResultError = struct {
-    title: []const u8,
-    message: []const u8,
 };
 
 /// The extra types of requests that can be made

@@ -13,26 +13,6 @@ pub const CacheConfig = struct {
     ttl: u32 = 3600,
 };
 
-/// Used for filtering the response
-pub const Filter = union(enum) {
-    none,
-    ip,
-    hostname,
-    anycast,
-    city,
-    region,
-    country,
-    loc,
-    org,
-    postal,
-    timezone,
-    asn,
-    company,
-    privacy,
-    abuse,
-    domains,
-};
-
 /// A helper struct that allows for
 /// easier retrieval of the response body
 pub const Request = struct {
