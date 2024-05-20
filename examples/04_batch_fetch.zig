@@ -27,6 +27,7 @@ pub fn main() !void {
             "8.8.8.8/hostname",
             "8.8.4.4/country",
             "8.8.8.9/hostname",
+            "this_is_invalid/hostname",
         },
         // This will hide all the invalid responses from the output.
         // In this case, `8.8.8.9/hostname` is an invalid request.
@@ -39,11 +40,21 @@ pub fn main() !void {
 
     var iterator = hashMap.iterator();
     while (iterator.next()) |entry| {
-        std.debug.print("Data for {s} is: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
-    }
+        const key = entry.key_ptr.*;
+        const value = entry.value_ptr.*;
 
-    // // If you want to use the keys and values directly, you can do so like this:
-    // for (hashMap.keys(), hashMap.values()) |key, value| {
-    //     std.debug.print("Data for {s} is: {s}\n", .{ key, value });
-    // }
+        switch (value) {
+            // The expect value from the value is a string.
+            .string => |inner| std.debug.print("Data for {s} is: {s}\n", .{ key, inner }),
+            // However, if the value is an object, it means that an error occurred.
+            // We can parse the error message from the object.
+            .object => {
+                const parsed = try client.basic.getErrorFromObject(value);
+                defer parsed.deinit();
+
+                std.debug.print("Error for {s}\nTitle: {s}\nMessage: {s}\n\n", .{ key, parsed.value.@"error".title, parsed.value.@"error".message });
+            },
+            else => {},
+        }
+    }
 }

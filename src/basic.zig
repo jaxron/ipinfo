@@ -139,7 +139,7 @@ pub const IPInfoBatch = struct {
     /// Contains response body
     body: std.ArrayList(u8),
     /// Contains parsed values from the response body
-    parsed: ?std.json.Parsed(std.json.ArrayHashMap([]const u8)) = null,
+    parsed: ?std.json.Parsed(std.json.ArrayHashMap(std.json.Value)) = null,
     /// Information about the error if the request failed
     err: ?ResultError = null,
 
@@ -199,46 +199,6 @@ pub const Basic = struct {
     /// Releases all associated resources with the client
     pub fn deinit(self: *Basic) void {
         self.request.deinit();
-    }
-
-    /// Makes a batch API request and returns the information
-    /// for the specified IP URLs
-    pub fn getBatchIPInfo(self: *Basic, options: IPInfoBatchOptions) !IPInfoBatch {
-        // Build the final URL for the batch request
-        var final_url = builder.String.init(self.allocator);
-        defer final_url.deinit();
-
-        try final_url.concatAll(&.{ options.base_url, "batch" });
-        try final_url.concatIf(options.hide_invalid, "?filter=1");
-
-        // Build the payload to be sent in the batch request
-        const payload = try std.json.stringifyAlloc(self.allocator, options.ip_urls, .{});
-        defer self.allocator.free(payload);
-
-        // Make the request with the given options and payload
-        const done = try self.request.post(ResultError, .{
-            .url = final_url.string(),
-            .user_agent = options.user_agent,
-            .api_token = options.api_token,
-            .payload = payload,
-        });
-        defer done.deinit();
-
-        const body = done.body;
-
-        // Check if response is unsuccessful and parse the error message
-        if (done.hasError()) {
-            return .{
-                .body = body,
-                .err = done.err.?.value,
-            };
-        }
-
-        const parsed = try std.json.parseFromSlice(std.json.ArrayHashMap([]const u8), self.allocator, body.items, .{});
-        return .{
-            .parsed = parsed,
-            .body = body,
-        };
     }
 
     /// Makes a basic API request and returns the information
@@ -318,5 +278,50 @@ pub const Basic = struct {
             .filter = filter,
             .value = body,
         };
+    }
+
+    /// Makes a batch API request and returns the information
+    /// for the specified IP URLs
+    pub fn getBatchIPInfo(self: *Basic, options: IPInfoBatchOptions) !IPInfoBatch {
+        // Build the final URL for the batch request
+        var final_url = builder.String.init(self.allocator);
+        defer final_url.deinit();
+
+        try final_url.concatAll(&.{ options.base_url, "batch" });
+        try final_url.concatIf(options.hide_invalid, "?filter=1");
+
+        // Build the payload to be sent in the batch request
+        const payload = try std.json.stringifyAlloc(self.allocator, options.ip_urls, .{});
+        defer self.allocator.free(payload);
+
+        // Make the request with the given options and payload
+        const done = try self.request.post(ResultError, .{
+            .url = final_url.string(),
+            .user_agent = options.user_agent,
+            .api_token = options.api_token,
+            .payload = payload,
+        });
+        defer done.deinit();
+
+        const body = done.body;
+
+        // Check if response is unsuccessful and parse the error message
+        if (done.hasError()) {
+            return .{
+                .body = body,
+                .err = done.err.?.value,
+            };
+        }
+
+        const parsed = try std.json.parseFromSlice(std.json.ArrayHashMap(std.json.Value), self.allocator, body.items, .{});
+        return .{
+            .parsed = parsed,
+            .body = body,
+        };
+    }
+
+    pub fn getErrorFromObject(self: *Basic, object: std.json.Value) !std.json.Parsed(ResultError) {
+        const parsed = try std.json.parseFromValue(ResultError, self.allocator, object, .{});
+        return parsed;
     }
 };

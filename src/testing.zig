@@ -89,7 +89,7 @@ test "basic: 2 batch IP address requests" {
 
     try t.expect(!res.hasError());
     try t.expect(res.parsed.?.value.map.count() == 1);
-    try t.expectEqualStrings("US", res.parsed.?.value.map.values()[0]);
+    try t.expectEqualStrings("US", res.parsed.?.value.map.values()[0].string);
 
     // Test the cache with the same batch IP addresses
     const res2 = try client.basic.getBatchIPInfo(.{
@@ -104,7 +104,7 @@ test "basic: 2 batch IP address requests" {
 
     try t.expect(!res2.hasError());
     try t.expect(res2.parsed.?.value.map.count() == 1);
-    try t.expectEqualStrings(res.parsed.?.value.map.values()[0], res2.parsed.?.value.map.values()[0]);
+    try t.expectEqualStrings(res.parsed.?.value.map.values()[0].string, res2.parsed.?.value.map.values()[0].string);
 }
 
 test "basic: invalid IP address" {
